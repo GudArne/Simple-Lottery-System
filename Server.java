@@ -22,8 +22,9 @@ public class Server {
     {
         try 
         {      
-            // Create a new thread for LotterHandler. One time only.
-            Thread lotteryHandler = new Thread(new LotteryHandler());
+            // Create a new thread for LotteryHandler. One time only.
+            var lh = new LotteryHandler();
+            Thread lotteryHandler = new Thread(lh);
             lotteryHandler.start();
             
             while(!serverSocket.isClosed())
@@ -62,33 +63,50 @@ public class Server {
         @Override
         public void run() 
         {
+            var LotteryHistory = new LotteryHistory();
             var currDate = new Date();
+            System.out.println("LotteryHandler started at " + currDate.toString());
             
-            while(lotteryPools.size() > 0)
+            while(true)
             {
-                // Find the next lottery date
-                var nextLottery = getNextLotteryDate(currDate);
-                System.out.println("Next lottery date: " + nextLottery);
-    
-                // Wait until the next lottery date
-                if(currDate.after(nextLottery.getDate()))
+                if(lotteryPools.size() > 0)
                 {
-                    // Generate a number between 0 and 255
-                    int lotteryNumber = (int)(Math.random() * 4);
-                    System.out.println("Lottery number: " + lotteryNumber);
-    
-                    // Check if there is any winner
-                    var winner = checkLotteryWinner(nextLottery, lotteryNumber);
-    
-                    // If there is a winner, send an email to the winner
-                    if(winner != null)
+                    // Find the next lottery date
+                    var nextLottery = getNextLotteryDate(currDate);
+                    System.out.println("Next lottery date: " + nextLottery);
+        
+                    // Wait until the next lottery date
+                    if(currDate.after(nextLottery.getDate()))
                     {
-                        System.out.println("Winner amount: " + winner.size());
-
-                        float price = (nextLottery.getPricePool() + reserveMoney) / winner.size();
-                        for (User user : winner) 
+                        // Generate a number between 0 and 255
+                        int lotteryNumber = (int)(Math.random() * 10);
+                        System.out.println("Lottery number: " + lotteryNumber);
+        
+                        // Check if there is any winner
+                        var winner = checkLotteryWinner(nextLottery, lotteryNumber);
+        
+                        // If there is a winner, send an email to the winner
+                        if(!winner.isEmpty())
                         {
-                            System.out.println("Winner: " + user.getId() + " won " + price + " kr");
+                            System.out.println("Winner amount: " + winner.size());
+    
+                            int price = (int) Math.round((nextLottery.getPricePool() + reserveMoney) / winner.size());
+                            int numWinners = 0;
+                            for (User user : winner) 
+                            {
+                                System.out.println("Winner: " + user.getId() + " won " + price + " kr");
+                                numWinners++;
+                                // Create a LotteryHistory object
+                            }
+                            var drawingResult = new DrawingResult(currDate, lotteryNumber, numWinners, price);
+                            LotteryHistory.writeDataToFile(drawingResult);
+
+                            // Remove the lottery pool
+                            lotteryPools.remove(nextLottery);
+                        }
+                        else
+                        {
+                            System.out.println("No winner");
                         }
                     }
                 }
@@ -125,6 +143,8 @@ public class Server {
         @Override
         public void run() 
         {
+            boolean hasError = false;
+
             while(clientSocket.isConnected())
             {
                 try 
@@ -141,22 +161,59 @@ public class Server {
                     if (user instanceof User) 
                     {
 
-                        // TODO: Error check, send response to client
+                        String[] numbersArray = user.getNumbers().split(" ");
+                        for (String num : numbersArray) 
+                        {
+                            // Error: nummer out of bounds
+                            if(Integer.parseInt(num) > 255 || Integer.parseInt(num) < 0)
+                            {
+                                System.out.println("Number out of bounds");
+                                hasError = true;
+                                break;
+                            }
+                            // Error: samma nummer flera gånger på samma tid.
+                            // if (user.getNumbers().contains(num))
+                            // {
+                            //     System.out.println("Same number multiple times at the same time");
+                            //     hasError = true;
+                            //     break;
+                            // }
+                        }
 
-                        userId = user.getId();
-                        System.out.println("User " + userId + " connected");
-                        System.out.println("User " + userId + " entered numbers: " + user.getNumbers());
-                        System.out.println("User " + userId + " entered email: " + user.getEmail());
-                        System.out.println("User " + userId + " entered date: " + user.getDate());
 
-                        // Check if there is a lottery pool for the date
-                        var date = user.getDate();
-                        var lotteryPool = getLotteryPool(date);
+                        // Error: Datum passerat
+                        // Lägg till sleep i LotteryHandler
+                        // Lägg till en lista med vinnare i en csv fil
+                        // 
 
-                        lotteryPool.addUser(user);
-                        lotteryPool.addMoney(100);
+                        if(!hasError)
+                        {
+                            userId = user.getId();
+                            System.out.println("User " + userId + " connected");
+                            System.out.println("User " + userId + " entered numbers: " + user.getNumbers());
+                            System.out.println("User " + userId + " entered email: " + user.getEmail());
+                            System.out.println("User " + userId + " entered date: " + user.getDate());
+                            System.out.println("User " + userId + " entered price: " + user.getBettingSum());
+    
+                            // Check if there is a lottery pool for the date
+                            var date = user.getDate();
+                            var lotteryPool = getLotteryPool(date);
+    
+                            lotteryPool.addUser(user);
+                            lotteryPool.addMoney(user.getBettingSum());
+    
+                            lotteryPools.add(lotteryPool);
+    
+                            // Send response to client
+                            out.write("Success");
+                            out.flush();
+                        }
+                        else
+                        {
+                            out.write("Error");
+                            out.flush();
+                        }
                     }
-
                     closeClient(clientSocket, out, in);
                     break;
                 } 
@@ -216,6 +273,8 @@ public class Server {
 
         for (User user : users) 
         {
+            // TODO: split numbers and check each number
+
             if(user.getNumbers().contains(lotteryNumber + ""))
             {
                 System.out.println("Winner found: " + user.getId());

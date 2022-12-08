@@ -82,6 +82,7 @@ public class Client{
                         if(msg != null)
                         {
                             System.out.println(msg);
+                            closeClient(socket, out, in);
                         }
                     } 
                     catch (IOException e) 
@@ -94,6 +95,4 @@ public class Client{
             }
         }).start();
     }
-
-
 }
