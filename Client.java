@@ -20,7 +20,7 @@ public class Client{
         }
     }
 
-    private void closeClient(Socket socket, ObjectOutputStream out, BufferedReader reader) 
+    public void closeClient(Socket socket, ObjectOutputStream out, BufferedReader reader) 
     {
         try 
         {
@@ -39,6 +39,8 @@ public class Client{
             {
                 reader.close();
             }
+
+            System.exit(0);
         } 
         catch (Exception e) 
         {

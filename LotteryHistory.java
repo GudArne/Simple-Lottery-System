@@ -3,16 +3,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Scanner;
-import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 
 public class LotteryHistory 
 {
@@ -37,7 +34,7 @@ public class LotteryHistory
 
             if (date.after(start) && date.before(end)) 
             {
-                //var winningDate = line.split(",")
+                // var winningDate = line.split(",")[];
                 var winningNumber = Integer.parseInt(line.split(",")[1]);
                 var numWinners = Integer.parseInt(line.split(",")[2]);
                 var totalWinnings = Integer.parseInt(line.split(",")[3]);
@@ -54,8 +51,8 @@ public class LotteryHistory
         // Write the results to the CSV file
         try
         {
-            BufferedWriter writer = new BufferedWriter(new FileWriter("History.csv"));
-            writer.write(String.format("%s,%d,%d,%d\n", result.getDateTime(), result.getWinningNumber(),
+            BufferedWriter writer = new BufferedWriter(new FileWriter("History.csv", true));
+            writer.append(String.format("%s,%d,%d,%d\n", result.getDateTime(), result.getWinningNumber(),
                 result.getNumWinners(), result.getTotalWinnings()));
 
             writer.close();
@@ -71,7 +68,7 @@ public class LotteryHistory
     {
         for (DrawingResult result : results) 
         {
-            System.out.println(result.getDateTime() + " " + result.getWinningNumber() + " " + result.getNumWinners() + " " + result.getTotalWinnings());
+            System.out.println(result.getDateTime() + ", " + result.getWinningNumber() + ", " + result.getNumWinners() + ", " + result.getTotalWinnings());
         }
     }
 

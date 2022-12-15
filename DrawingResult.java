@@ -1,9 +1,4 @@
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.Date;
-import java.util.List;
 
 
 public class DrawingResult {
@@ -12,7 +7,8 @@ public class DrawingResult {
     private int numWinners;
     private int totalWinnings;
   
-    public DrawingResult(Date dateTime, int winningNumber, int numWinners, int totalWinnings) {
+    public DrawingResult(Date dateTime, int winningNumber, int numWinners, int totalWinnings) 
+    {
       this.dateTime = dateTime;
       this.winningNumber = winningNumber;
       this.numWinners = numWinners;

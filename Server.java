@@ -1,11 +1,9 @@
 import java.net.*;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
 import java.io.*;
-import java.util.List;
 
 public class Server {
     private ServerSocket serverSocket;
@@ -73,10 +71,17 @@ public class Server {
                 {
                     // Find the next lottery date
                     var nextLottery = getNextLotteryDate(currDate);
-                    System.out.println("Next lottery date: " + nextLottery);
+                    // System.out.println("Next lottery date: " + nextLottery);
+
+                    // Sleep the thread for 3 second
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
         
                     // Wait until the next lottery date
-                    if(currDate.after(nextLottery.getDate()))
+                    if(currDate.after(nextLottery.getDate()) && nextLottery != null)
                     {
                         // Generate a number between 0 and 255
                         int lotteryNumber = (int)(Math.random() * 10);
@@ -95,17 +100,27 @@ public class Server {
                             for (User user : winner) 
                             {
                                 System.out.println("Winner: " + user.getId() + " won " + price + " kr");
+                                System.out.println("User with Email: " + user.getEmail() + "won");
                                 numWinners++;
-                                // Create a LotteryHistory object
                             }
+
+                            // Create a LotteryHistory object
                             var drawingResult = new DrawingResult(currDate, lotteryNumber, numWinners, price);
                             LotteryHistory.writeDataToFile(drawingResult);
 
-                            // Remove the lottery pool
+                            // Remove the lottery pool, update next lottery
                             lotteryPools.remove(nextLottery);
+                            nextLottery = getNextLotteryDate(currDate);
                         }
                         else
                         {
+                            // No winners. Add the money to the reserve
+                            reserveMoney += nextLottery.getPricePool();
+
+                            // Remove the lottery pool, update next lottery
+                            lotteryPools.remove(nextLottery);
+                            nextLottery = getNextLotteryDate(currDate);
+
                             System.out.println("No winner");
                         }
                     }
@@ -160,7 +175,6 @@ public class Server {
 
                     if (user instanceof User) 
                     {
-
                         String[] numbersArray = user.getNumbers().split(" ");
                         for (String num : numbersArray) 
                         {
@@ -172,12 +186,8 @@ public class Server {
                                 break;
                             }
                             // Error: samma nummer flera gånger på samma tid.
-                            // if (user.getNumbers().contains(num))
-                            // {
-                            //     System.out.println("Same number multiple times at the same time");
-                            //     hasError = true;
-                            //     break;
-                            // }
+                            hasError = checkDuplicateNumbers(numbersArray, user);
+                            break;
                         }
 
 
@@ -224,6 +234,39 @@ public class Server {
                 }
             }
         }
+        private Boolean checkDuplicateNumbers(String[] numbersArray, User user) 
+        {
+            for (var pool : lotteryPools) 
+            {
+                for (var userInPool : pool.getUsers()) 
+                {
+                    if(userInPool.getId().equals(user.getId()))
+                    {
+                        // Add the users betting numbers to the numbersArray
+                        String[] numbersInPool = userInPool.getNumbers().split(" ");
+                        for (String num : numbersInPool) 
+                        {
+                            // Add the number to the array
+                            numbersArray = Arrays.copyOf(numbersArray, numbersArray.length + 1);
+                            numbersArray[numbersArray.length - 1] = num;
+                        }
+                        
+                    }
+                }
+            }
+            for (int i = 0; i < numbersArray.length; i++) 
+            {
+                for (int j = i + 1; j < numbersArray.length; j++) 
+                {
+                    if(numbersArray[i].equals(numbersArray[j]))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         private void closeClient(Socket socket, BufferedWriter writer, ObjectInputStream in) 
         {
             System.out.println("Closing client " + userId);
@@ -274,11 +317,15 @@ public class Server {
         for (User user : users) 
         {
             // TODO: split numbers and check each number
-
-            if(user.getNumbers().contains(lotteryNumber + ""))
+            var numbers = user.getNumbers().split(" ");
+            for (var num : numbers) 
             {
-                System.out.println("Winner found: " + user.getId());
-                winners.add(user);
+                if(num.equals(lotteryNumber + ""))
+                {
+                    System.out.println("Winner found: " + user.getId());
+                    winners.add(user);
+                    break;
+                }
             }
         }
         return winners;
@@ -286,12 +333,13 @@ public class Server {
 
     public static LotteryPool getNextLotteryDate(Date currDate) 
     {
-        var tempPool = lotteryPools.get(0);
+        LotteryPool tempPool = null;
 
         // Iterate through all the lottery pools
         for (LotteryPool lotteryPool : lotteryPools) 
         {
-            if(tempPool.getDate().after(lotteryPool.getDate()))
+            // Find the lottery pool with the closest date to currDate
+            if (tempPool == null || lotteryPool.getDate().before(tempPool.getDate()) && lotteryPool.getDate().after(currDate))
             {
                 tempPool = lotteryPool;
             }
